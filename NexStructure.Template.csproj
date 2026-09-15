@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageId>NexStructure.Template</PackageId>
+    <Version>1.0.0</Version>
+    <PackageType>Template</PackageType>
+    <Title>NexStructure API Solution Template</Title>
+    <Authors>StudioNex</Authors>
+    <Description>A .NET 10 API solution template organized into API, Application, Domain, and Infrastructure projects.</Description>
+    <PackageTags>dotnet-new;template;api;clean-architecture;nexstructure</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>PACKAGE-README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Studionex/NexStructure</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Studionex/NexStructure</RepositoryUrl>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\</PackageOutputPath>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="**/*.cs" />
+    <None Remove="**/*" />
+    <None Include="PACKAGE-README.md" Pack="true" PackagePath="/" />
+    <Content Include="**/*"
+             Exclude=".git/**/*;.github/**/*;.idea/**/*;.vs/**/*;artifacts/**/*;**/bin/**/*;**/obj/**/*;NexStructure.Template.csproj;PACKAGE-README.md;README.md" />
+  </ItemGroup>
+</Project>

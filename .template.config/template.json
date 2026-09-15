@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "StudioNex",
+  "classifications": [
+    "Web",
+    "API",
+    "Clean Architecture"
+  ],
+  "identity": "NexStructure.Template",
+  "name": "NexStructure API Solution",
+  "shortName": "nexstructure",
+  "sourceName": "NexStructure",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "exclude": [
+            ".git/**",
+            ".github/**",
+            ".idea/**",
+            ".template.config/**",
+            ".vs/**",
+            "artifacts/**",
+            "**/bin/**",
+            "**/obj/**",
+            "**/*.sln.DotSettings.user",
+            "NexStructure.Template.csproj",
+            "PACKAGE-README.md",
+            "README.md"
+          ]
+        }
+      ]
+    }
+  ]
+}

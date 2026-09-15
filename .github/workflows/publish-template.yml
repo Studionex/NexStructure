@@ -1,0 +1,126 @@
+name: Publish Template
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version to publish (e.g. 1.0.0). Leave empty to use the Version in the csproj.
+        required: false
+        type: string
+      nuget_user:
+        description: nuget.org username (profile name, not email). Used if NUGET_USER is not set.
+        required: false
+        type: string
+
+concurrency:
+  group: nuget-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Resolve package version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-}"
+          if [ -z "$version" ] && [ -n "${RELEASE_TAG:-}" ]; then
+            version="$RELEASE_TAG"
+          fi
+          version="${version#v}"
+          if [ -z "$version" ]; then
+            version="$(dotnet msbuild NexStructure.Template.csproj -nologo -getProperty:Version | tr -d '[:space:]')"
+          fi
+          if [ -z "$version" ]; then
+            echo "Could not determine package version." >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing NexStructure.Template $version"
+
+      - name: Pack
+        run: >
+          dotnet pack NexStructure.Template.csproj
+          --configuration Release
+          -p:PackageVersion=${{ steps.version.outputs.value }}
+          -p:RepositoryCommit=${{ github.sha }}
+
+      - name: Resolve NuGet auth
+        id: auth
+        env:
+          NUGET_USER_INPUT: ${{ inputs.nuget_user }}
+          NUGET_USER_VAR: ${{ vars.NUGET_USER }}
+          NUGET_USER_SECRET: ${{ secrets.NUGET_USER }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          user="${NUGET_USER_INPUT:-}"
+          if [ -z "$user" ]; then user="${NUGET_USER_VAR:-}"; fi
+          if [ -z "$user" ]; then user="${NUGET_USER_SECRET:-}"; fi
+          if [ -n "$user" ]; then
+            echo "mode=oidc" >> "$GITHUB_OUTPUT"
+            echo "user=$user" >> "$GITHUB_OUTPUT"
+            echo "Using Trusted Publishing as $user"
+          elif [ -n "${NUGET_API_KEY:-}" ]; then
+            echo "mode=apikey" >> "$GITHUB_OUTPUT"
+            echo "Using NUGET_API_KEY"
+          else
+            echo "::error::Missing NuGet credentials. Set repository variable or secret NUGET_USER to your nuget.org username (profile name, not email), or set secret NUGET_API_KEY."
+            exit 1
+          fi
+
+      - name: NuGet login
+        if: steps.auth.outputs.mode == 'oidc'
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ steps.auth.outputs.user }}
+
+      - name: Push to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          package="artifacts/NexStructure.Template.${PACKAGE_VERSION}.nupkg"
+          if [ ! -f "$package" ]; then
+            echo "::error::Expected package $package was not produced."
+            ls -la artifacts || true
+            exit 1
+          fi
+          echo "Pushing $package to nuget.org"
+          dotnet nuget push "$package" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Push to GitHub Packages
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          package="artifacts/NexStructure.Template.${PACKAGE_VERSION}.nupkg"
+          echo "Pushing $package to GitHub Packages"
+          dotnet nuget push "$package" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --skip-duplicate
